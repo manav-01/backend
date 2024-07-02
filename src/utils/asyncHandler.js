@@ -9,6 +9,8 @@ const asyncHandler = (requestHandler) => {
       .catch((error) => next(error)
       )
   }
+
+  // ! must be "return" this wrapper function.
 }
 
 

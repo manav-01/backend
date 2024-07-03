@@ -30,11 +30,12 @@ const registerUser = asyncHandler(async (req, res) => {
   // ! get user details from the frontend 
 
   const { fullName, email, username, password } = req.body;
-  // console.log(req.body);
+  console.log("req.body : \n", req.body);
 
   // ! validation not empty
 
   // * Method 1 check validation by using if() condition
+
   // if (fullName === "") {
   //   throw new ApiError(400, "Full Name is required ")
   // }
@@ -59,7 +60,9 @@ const registerUser = asyncHandler(async (req, res) => {
 
   // ! check if user already exists: username and email
 
-  const existUser = User.findOne(
+  // ! checks and verification or requirements check on Top and then last phase whe all thing work properly and verified base on over requirement then we will add data in Database. 
+
+  const existUser = await User.findOne(
     {
       $or: [{ username }, { email }]
     }
@@ -70,16 +73,33 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   //! upload for image, avatar, check for avatar V14: 30.37 Logic building | Register controller
-  const avatarLocalPath = req.files?.avatar[0]?.path;
-  const coverImageLocalPath = req.files?.coverImage[0].path;
+  //? handle this another way Error: Cannot read properties of undefined 
+  // * here we write `req.files` instant of `req.body.files`.
+  const avatarLocalPath = (req.files?.avatar && req.files.avatar.length > 0) ? req.files.avatar[0].path : null;
+  const coverImageLocalPath = (req.files?.coverImage && req.files.coverImage.length > 0) ? req.files.coverImage[0].path : null;
+
+  console.log(`\n *****Cloudinary avatar Store here*****\n`)
+  console.log(`\t\t req.files \n ${req.body.files}`)
+  console.log(`\n *****Cloudinary avatar Store here Part 2*****\n`)
+  console.log(`\t\t req.files \n ${req.files.avatar}`)
+
 
   if (!avatarLocalPath) {
     throw new ApiError(400, "Avatar file is required.");
   }
+  // if (!avatarLocalPath) {
+  //   console.log("Avatar file is not uploaded or not accessible.");
+  // }
+  // if (!coverImageLocalPath) {
+  //   console.log("Cover image file is not uploaded or not accessible.");
+  // }
 
   //! upload them to cloudinary, avatar   --> it takes time to upload so add await here
   const avatar = await uploadOnCloudinary(avatarLocalPath);
   const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+
+  console.log(`\n *****Cloudinary Response Data of avatar****\n`)
+  console.log(`\t\t req.files \n ${avatar}`)
 
   if (!avatar) {
     throw new ApiError(400, "Avatar file is required.");
@@ -99,6 +119,9 @@ const registerUser = asyncHandler(async (req, res) => {
     }
   );
 
+  console.log(`\n *****Mongo DB User Created data about*****\n`)
+  console.log(`  ${user}`)
+
   // check user is successfully created or not and also remove unwanted data from the response 
   const createdUser = await User.findById(user._id).select(
     "-password -refreshToken"
@@ -107,6 +130,10 @@ const registerUser = asyncHandler(async (req, res) => {
   if (!createdUser) {
     throw new ApiError(500, "Something went wrong while registering the user")
   };
+
+  console.log(`\n *****Mongo DB User Created *****\n`)
+  console.log(`  ${createdUser}`)
+
 
   // ! return response
   return res.status(201).json(

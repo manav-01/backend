@@ -3,7 +3,8 @@ import multer from "multer";
 const storage = multer.diskStorage(
   {
     destination: function (req, file, cb) {
-      cb(null, "/public/temp")
+      cb(null, "public/temp"); // ! must use "/" for location
+
     },
     filename: function (req, file, cb) {
       // TODO: "file.originalname" --> use proper formate marked new file name instant of "file.originalname" because sometime originalname of path make you in trouble.   

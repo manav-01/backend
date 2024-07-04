@@ -21,8 +21,10 @@ const generateAccessAndRefreshToken = async (userId) => {
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
 
-    user, refreshToken = refreshToken;
+    user.refreshToken = refreshToken;
     // user.save()  is save what you give and already exist data it will be kick In. so we need to "remove" before save.
+
+
     user.save({ validationBeforeSave: false });
 
     return { accessToken, refreshToken };
@@ -52,7 +54,7 @@ const registerUser = asyncHandler(async (req, res) => {
   // ! get user details from the frontend 
 
   const { fullName, email, username, password } = req.body;
-  console.log("req.body : \n", req.body);
+  // console.log("req.body : \n", req.body);
 
   // ! validation not empty
 
@@ -100,10 +102,10 @@ const registerUser = asyncHandler(async (req, res) => {
   const avatarLocalPath = (req.files?.avatar && req.files.avatar.length > 0) ? req.files.avatar[0].path : null;
   const coverImageLocalPath = (req.files?.coverImage && req.files.coverImage.length > 0) ? req.files.coverImage[0].path : null;
 
-  console.log(`\n *****Cloudinary avatar Store here*****\n`)
-  console.log(`\t\t req.files \n ${req.body.files}`)
-  console.log(`\n *****Cloudinary avatar Store here Part 2*****\n`)
-  console.log(`\t\t req.files \n ${req.files.avatar}`)
+  // console.log(`\n *****Cloudinary avatar Store here*****\n`)
+  // console.log(`\t\t req.files \n ${req.body.files}`)
+  // console.log(`\n *****Cloudinary avatar Store here Part 2*****\n`)
+  // console.log(`\t\t req.files \n ${req.files.avatar}`)
 
 
   if (!avatarLocalPath) {
@@ -120,8 +122,8 @@ const registerUser = asyncHandler(async (req, res) => {
   const avatar = await uploadOnCloudinary(avatarLocalPath);
   const coverImage = await uploadOnCloudinary(coverImageLocalPath);
 
-  console.log(`\n *****Cloudinary Response Data of avatar****\n`)
-  console.log(`\t\t req.files \n ${avatar}`)
+  // console.log(`\n *****Cloudinary Response Data of avatar****\n`)
+  // console.log(`\t\t req.files \n ${avatar}`)
 
   if (!avatar) {
     throw new ApiError(400, "Avatar file is required.");
@@ -141,8 +143,8 @@ const registerUser = asyncHandler(async (req, res) => {
     }
   );
 
-  console.log(`\n *****Mongo DB User Created data about*****\n`)
-  console.log(`  ${user}`)
+  // console.log(`\n *****Mongo DB User Created data about*****\n`)
+  // console.log(`  ${user}`)
 
   // check user is successfully created or not and also remove unwanted data from the response 
   const createdUser = await User.findById(user._id).select(
@@ -153,8 +155,8 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Something went wrong while registering the user")
   };
 
-  console.log(`\n *****Mongo DB User Created *****\n`)
-  console.log(`  ${createdUser}`)
+  // console.log(`\n *****Mongo DB User Created *****\n`)
+  // console.log(`  ${createdUser}`)
 
 
   // ! return response
@@ -179,6 +181,8 @@ const loginUser = asyncHandler(async (req, res) => {
 
   const { email, username, password } = req.body;
 
+  // console.log(req.body);
+
   // password is required
   if (!password) {
     throw new ApiError(400, "Password field is required");
@@ -201,6 +205,7 @@ const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User does not exist in DataBase");
   }
 
+
   // ? V 16 15.40 Access Refresh Token, Middleware and cookies in Backend
   // ! NOTE: Custom method is store in "user". which we get by from the dataBase
   // ! And, Mongoose methods is have to "User" , because "User" is mongoose Object.
@@ -212,7 +217,6 @@ const loginUser = asyncHandler(async (req, res) => {
 
   // we serval time use and create "AccessToken" and "GenerateToken"., so we make separate file of methods.
   const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id);
-
   // make sure in file: app.js, it apply cookieParser() in middleware like : "app.use(cookieParser())"; 
 
   // V16 27.34 : if DB call is not expensive then update user value from the DB, otherwise update "user" field manually.
@@ -247,8 +251,6 @@ const loginUser = asyncHandler(async (req, res) => {
 
 const logoutUser = asyncHandler(async (req, res) => {
 
-
-
   // * Algorithm of Logout user 
   // make own middleware and ejected in route
   // help of middleware get data of user then,
@@ -257,7 +259,7 @@ const logoutUser = asyncHandler(async (req, res) => {
   //  cleared cookie data and response to  user
 
   // ! find user base on _id and Update
-  User.findByIdAndUpdate(
+  await User.findByIdAndUpdate(
     req.user._id,
     {
       $set: {
@@ -269,6 +271,7 @@ const logoutUser = asyncHandler(async (req, res) => {
     }
     //* new: true -->  By default, findOneAndUpdate() returns the document as it was before update was applied. If you set new: true, findOneAndUpdate() will instead give you the object after update was applied.
   );
+
 
   //!  cleared cookie data and response to  user
   const option = {
@@ -285,6 +288,8 @@ const logoutUser = asyncHandler(async (req, res) => {
     );
 
 })
+
+
 
 
 

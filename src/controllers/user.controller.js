@@ -3,6 +3,8 @@ import { ApiError } from "../utils/ApiError.js"
 import { User } from "../models/user.model.js"
 import { uploadOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
+import jwt from "jsonwebtoken"
+import { OPTION } from "../constants.js"
 // Demo Code and initial testing for write
 // const registerUser = asyncHandler(async (req, res) => {
 //   await res.status(200).json(
@@ -226,15 +228,12 @@ const loginUser = asyncHandler(async (req, res) => {
 
   // ! send cookie
   // 29.11 Note: Cookie is updated by frontend side, if it want to be pretend, that case we need below configuration option, then only server side, cookie value changed.(in frontend side you can see but not modifies)
-  const option = {
-    httpOnly: true,
-    secure: true,
-  }
+
 
   return res
     .status(200)
-    .cookie("accessToken", accessToken, option)
-    .cookie("refreshToken", refreshToken, option)
+    .cookie("accessToken", accessToken, OPTION)
+    .cookie("refreshToken", refreshToken, OPTION)
     .json(
       new ApiResponse(
         200,
@@ -274,15 +273,12 @@ const logoutUser = asyncHandler(async (req, res) => {
 
 
   //!  cleared cookie data and response to  user
-  const option = {
-    httpOnly: true,
-    secure: true
-  };
+
 
   return res
     .status(200)
-    .clearCookie("accessToken", option)
-    .clearCookie("refreshToken", option)
+    .clearCookie("accessToken", OPTION)
+    .clearCookie("refreshToken", OPTION)
     .json(
       new ApiResponse(200, {}, "User logged Out")
     );
@@ -290,12 +286,56 @@ const logoutUser = asyncHandler(async (req, res) => {
 })
 
 
+// *create refresh access token from the User to update token by user
+const refreshAccessToken = asyncHandler(async (req, res) => {
 
+  try {
+    // Algorithm
+    // get refresh access token from the User to update token by user
+    const incomingRefreshToken = req.cookie.refreshToken || req.body.refreshToken;
+
+    if (!refreshAccessToken) { throw new ApiError(401, "Unauthorized request") };
+
+    // decode Token
+    const decodedToken = jwt.verify(refreshAccessToken, process.env.REFRESH_TOKEN_SECRET);
+
+    // Find the  user in database
+    const user = await User.findById(decodedToken?._id);
+    if (!user) {
+      throw new ApiError(401, "Invalid refresh token ");
+    };
+
+    if (incomingRefreshToken !== user?.refreshAccessToken) {
+      throw new ApiError(401, "Refresh token id expired or used")
+    }
+
+    // generate new access Token
+    const { accessToken, newRefreshToken } = await generateAccessAndRefreshToken(user._id);
+
+    // Send the response
+    return res
+      .status(200)
+      .cookie("accessToken", accessToken, OPTION)
+      .cookie("refresh", newRefreshToken, Option)
+      .json(
+        new ApiResponse(
+          200,
+          { accessToken, refreshToken: newRefreshToken },
+          "Access token refreshed"
+        )
+      );
+  } catch (error) {
+    throw new ApiError(401, error?.message || "Invalid refresh token")
+  }
+
+
+});
 
 
 export {
   registerUser,
   loginUser,
-  logoutUser
+  logoutUser,
+  refreshAccessToken
 
 };

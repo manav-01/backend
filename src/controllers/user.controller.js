@@ -274,7 +274,6 @@ const logoutUser = asyncHandler(async (req, res) => {
 
   //!  cleared cookie data and response to  user
 
-
   return res
     .status(200)
     .clearCookie("accessToken", OPTION)
@@ -284,6 +283,7 @@ const logoutUser = asyncHandler(async (req, res) => {
     );
 
 })
+
 
 
 // *create refresh access token from the User to update token by user
@@ -332,10 +332,166 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 });
 
 
+//* update password on Database
+
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+
+  try {
+    // get data from the body
+    // also for user identification for add "middleware" 
+    const { oldPassword, newPassword } = req.body;
+    const emptyFields = Object.keys(req.body).filter((field) => !req.body[field]);
+    if (emptyFields.length > 0) {
+      const errorMessage = `field${emptyFields.length > 1 ? "s" : ""} ${emptyFields.join(' & ')} ${emptyFields.length > 1 ? 'are' : 'is'} required`;
+      throw new ApiError(400, errorMessage);
+    }
+
+    // check user given old password is true or not.
+    const user = await User.findById(req.user?._id);
+    if (!user) { throw new ApiError(400, "user is not found"); };
+    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
+    if (!isPasswordCorrect) { throw new ApiError(401, error?.message || "Invalid old password") }
+
+    // save new password in Database
+    user.password = newPassword;
+    await user.save({ validationBeforeSave: false })
+
+    // send response
+    return res
+      .status(200)
+      .json(new ApiResponse(200, {}, "Password change successfully."))
+
+
+
+  } catch (error) {
+    throw new ApiError(401, error?.message || "There is an error in changing current password");
+  }
+
+
+})
+
+// get Current user
+const getCurrentUser = asyncHandler(async (req, res) => {
+  return res
+    .status(200)
+    .json(200, req.user, "current user fetched successfully.");
+})
+
+// * Update account details
+const updateAccountDetails = asyncHandler(async (req, res) => {
+
+  // get Data From the request
+  // make sure add middleware in "endpoint"
+  const { email, fullName } = req.body;
+  if (!email || !fullName) { throw new ApiError(400, "All fields are required") };
+
+  // update new data in Database
+  await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: { fullName, email }
+    },
+    { new: true }
+
+  )
+    .select(" -password -refreshToken");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Account details updated successfully. "));
+
+
+});
+
+// Todo: Production level advised : V18 : Writing update controllers for user | Backend with JS :: when upload file or perform height task so for that task for make different file of `controller` and `endpoints` --> which is more better approach  to handle that. Why reason : V18 Time : 23.36
+
+// * Update user avatar
+const updateUserAvatar = asyncHandler(async (req, res) => {
+
+  try {
+    // Local Path details
+    const avatarLocalPath = req.file?.path;
+    if (!avatarLocalPath) {
+      throw new ApiError(400, "Avatar file is missing")
+    }
+
+    // upload on Cloudinary
+    // TODO: delete old image - assignment
+    const avatar = await uploadOnCloudinary(avatarLocalPath);
+
+    if (!avatar.url) { throw new ApiError(400, "Error while uploading on avatar"); }
+
+    // Update Database
+    const user = await User.findByIdAndUpdate(
+      req.user?._id,
+      {
+        $set: { avatar: avatar.url }
+      },
+      { new: true }
+    )
+      .select("-password -refreshToken");
+
+    // send response
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, user, "Avatar image updated successfully")
+      )
+  } catch (error) {
+    throw new ApiError(401, error?.message || "There is an error in updating Avatar");
+
+  }
+})
+
+// * update user Cover Image
+
+const updateUserCoverImage = asyncHandler(async (req, res) => {
+
+  // get path of image
+  const coverImageLocalPath = req.file?.path;
+
+  if (!coverImageLocalPath) {
+    throw new ApiError(400, "Avatar file is missing")
+  }
+
+  // upload on Cloudinary
+  // TODO: delete old image - assignment
+  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+  if (!coverImage.url) { throw new ApiError(400, "Error while uploading on coverImage"); }
+
+  // Update Database
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        coverImage: coverImage.url
+      }
+    },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  // respond response
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, user, "Cover image updated successfully")
+    )
+
+
+
+})
+
+
+
 export {
   registerUser,
   loginUser,
   logoutUser,
-  refreshAccessToken
+  refreshAccessToken,
+  changeCurrentPassword,
+  getCurrentUser,
+  updateAccountDetails,
+  updateUserAvatar,
+  updateUserCoverImage,
 
 };

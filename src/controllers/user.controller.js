@@ -12,6 +12,28 @@ import { ApiResponse } from "../utils/ApiResponse.js"
 //   );
 // });
 
+// ? Define Access and refresh Token methods
+const generateAccessAndRefreshToken = async (userId) => {
+
+  try {
+
+    const user = await User.findById(userId);
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+
+    user, refreshToken = refreshToken;
+    // user.save()  is save what you give and already exist data it will be kick In. so we need to "remove" before save.
+    user.save({ validationBeforeSave: false });
+
+    return { accessToken, refreshToken };
+
+  } catch (error) {
+
+    throw new ApiError(500, error?.message || "Something went wrong while generating refresh and Access Token");
+
+  }
+}
+
 
 const registerUser = asyncHandler(async (req, res) => {
 
@@ -143,7 +165,132 @@ const registerUser = asyncHandler(async (req, res) => {
 });
 
 
+const loginUser = asyncHandler(async (req, res) => {
+
+  // ? LoginUser Algorithm steps
+  // request body --> data
+  // username and email required
+  // find the user or email in DB
+  // password and check
+  // access and refresh token
+  // send cookie
+
+  // ! request body --> data
+
+  const { email, username, password } = req.body;
+
+  // password is required
+  if (!password) {
+    throw new ApiError(400, "Password field is required");
+  }
+
+  // username and email required
+  if (!(username || email)) {
+    throw new ApiError(400, "Either username or email is required");
+  }
+
+  // Find out user in DB base on "username" and "email"
+  const user = await User.findOne(
+    {
+      $or: [{ username }, { email }]
+    }
+  )
+
+  // if user is not exist
+  if (!user) {
+    throw new ApiError(404, "User does not exist in DataBase");
+  }
+
+  // ? V 16 15.40 Access Refresh Token, Middleware and cookies in Backend
+  // ! NOTE: Custom method is store in "user". which we get by from the dataBase
+  // ! And, Mongoose methods is have to "User" , because "User" is mongoose Object.
+
+  const isPasswordValid = await user.isPasswordCorrect(password);
+  if (!isPasswordValid) {
+    throw new ApiError(401, "Invalid user credentials");
+  }
+
+  // we serval time use and create "AccessToken" and "GenerateToken"., so we make separate file of methods.
+  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id);
+
+  // make sure in file: app.js, it apply cookieParser() in middleware like : "app.use(cookieParser())"; 
+
+  // V16 27.34 : if DB call is not expensive then update user value from the DB, otherwise update "user" field manually.
+
+  const loggedInUser = await User.findById(user._id)
+    .select(" -password -refreshToken "); // remove this data
+
+  // ! send cookie
+  // 29.11 Note: Cookie is updated by frontend side, if it want to be pretend, that case we need below configuration option, then only server side, cookie value changed.(in frontend side you can see but not modifies)
+  const option = {
+    httpOnly: true,
+    secure: true,
+  }
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, option)
+    .cookie("refreshToken", refreshToken, option)
+    .json(
+      new ApiResponse(
+        200,
+        {
+          user: loggedInUser, accessToken, refreshToken,
+        },
+        "User Logged in successfully"
+      )
+    );
+
+
+})
+
+
+const logoutUser = asyncHandler(async (req, res) => {
 
 
 
-export { registerUser };
+  // * Algorithm of Logout user 
+  // make own middleware and ejected in route
+  // help of middleware get data of user then,
+  // find user base on _id
+  // update user data on Database 
+  //  cleared cookie data and response to  user
+
+  // ! find user base on _id and Update
+  User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        refreshToken: undefined,
+      }
+    },
+    {
+      new: true
+    }
+    //* new: true -->  By default, findOneAndUpdate() returns the document as it was before update was applied. If you set new: true, findOneAndUpdate() will instead give you the object after update was applied.
+  );
+
+  //!  cleared cookie data and response to  user
+  const option = {
+    httpOnly: true,
+    secure: true
+  };
+
+  return res
+    .status(200)
+    .clearCookie("accessToken", option)
+    .clearCookie("refreshToken", option)
+    .json(
+      new ApiResponse(200, {}, "User logged Out")
+    );
+
+})
+
+
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser
+
+};

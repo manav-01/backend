@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js"
 import { ApiError } from "../utils/ApiError.js"
 import { User } from "../models/user.model.js"
-import { uploadOnCloudinary } from "../utils/cloudinary.js"
+import { uploadOnCloudinary, deleteOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import jwt from "jsonwebtoken"
 import { OPTION } from "../constants.js"
@@ -359,7 +359,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
     // send response
     return res
       .status(200)
-      .json(new ApiResponse(200, {}, "Password change successfully."))
+      .json(new ApiResponse(200, {}, "Password changed successfully."))
 
 
 
@@ -386,7 +386,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
   if (!email || !fullName) { throw new ApiError(400, "All fields are required") };
 
   // update new data in Database
-  await User.findByIdAndUpdate(
+  const user = await User.findByIdAndUpdate(
     req.user?._id,
     {
       $set: { fullName, email }
@@ -417,6 +417,9 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
     // upload on Cloudinary
     // TODO: delete old image - assignment
+    // delete old image
+    await deleteOnCloudinary(req.user?.avatar);
+
     const avatar = await uploadOnCloudinary(avatarLocalPath);
 
     if (!avatar.url) { throw new ApiError(400, "Error while uploading on avatar"); }
@@ -456,6 +459,8 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
   // upload on Cloudinary
   // TODO: delete old image - assignment
+  // delete old image
+  await deleteOnCloudinary(req.user?.coverImage);
   const coverImage = await uploadOnCloudinary(coverImageLocalPath);
   if (!coverImage.url) { throw new ApiError(400, "Error while uploading on coverImage"); }
 

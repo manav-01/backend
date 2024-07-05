@@ -1,5 +1,7 @@
 import { v2 as cloudinary } from "cloudinary"
 import fs from "fs"
+import { asyncHandler } from "./asyncHandler";
+import { ApiError } from "./ApiError";
 
 // Make a cloudinary configuration
 cloudinary.config(
@@ -27,4 +29,30 @@ const uploadOnCloudinary = async (localFilePath) => {
 
 }
 
-export { uploadOnCloudinary } 
+
+const deleteOnCloudinary = asyncHandler(async (url) => {
+  try {
+    if (!url) return null;
+    const urlLink = String(url);
+    // Get Public Id
+    //a = url.split("/").reverse()[0].split(".")[0];
+    //b = url.split('/').pop().split('.')[0];
+    const publicId = urlLink.split('/').pop().split('.')[0];
+    console.log(publicId);
+    const response = await cloudinary.uploader.destroy(publicId);
+
+    if (!response) { throw new ApiError(500, "There is Issue to deleting old Image") };
+
+    return response;
+
+
+
+  } catch (error) {
+
+    return null;
+  }
+
+})
+
+
+export { uploadOnCloudinary, deleteOnCloudinary } 

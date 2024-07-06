@@ -5,6 +5,7 @@ import { uploadOnCloudinary, deleteOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import jwt from "jsonwebtoken"
 import { OPTION } from "../constants.js"
+import mongoose from "mongoose"
 // Demo Code and initial testing for write
 // const registerUser = asyncHandler(async (req, res) => {
 //   await res.status(200).json(
@@ -568,6 +569,69 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
 
 });
 
+// * Get Watch History
+
+const getWatchHistory = asyncHandler(async (req, res) => {
+
+  // V21 6.21 (How to write sub pipelines and routes) NOTE: when you get user id from the request like `req.user._id` , there actually you get _id in form of "String" and then you give that string `User` by mongoose , there mongoose cover `_id` sting data into BSON Object id (An ObjectID is a 12-byte Field Of BSON type) which actually Story in DB.
+  //NOTE:  but, when use user Aggregation pipeline there you need to give object id for math so backend developer need to convert that 
+  //NOTE:  Convert : `new mongoose.Types.ObjectId(req.user._id)`
+
+  const user = await User.aggregate([
+    {
+      $match: new mongoose.Types.ObjectId(req.user?._id)
+      // $match: new mongoose.ObjectId(req.user?._id)
+    },
+    {
+      $lookup: {
+        from: "videos",
+        localField: "watchHistory",
+        foreignField: "_id",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullName: 1,
+                    username: 1,
+                    avatar: 1
+                  }
+                }
+              ]
+            }
+          },
+          {
+            $addFields: {
+              owner: {
+                $first: "$owner"
+                // else `owner: { $arrayElemAt: [ <array> ""$owner"", <idx> "0" ] }`
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]);
+
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        user[0].watchHistory,
+        "Watch history fetched successfully"
+      )
+    )
+
+
+});
+
 
 
 export {
@@ -580,5 +644,6 @@ export {
   updateAccountDetails,
   updateUserAvatar,
   updateUserCoverImage,
-  getUserChannelProfile
+  getUserChannelProfile,
+  getWatchHistory
 };

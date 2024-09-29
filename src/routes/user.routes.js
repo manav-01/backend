@@ -18,6 +18,7 @@ import { verifyJWT } from "../middlewares/auth.middleware.js";
 /// create route
 const router = Router();
 
+// https://expressjs.com/en/resources/middleware/multer.html
 // route of register
 router.route("/register").post(
 

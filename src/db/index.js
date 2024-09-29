@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { DB_NAME } from "../constants.js";
+// Database always in another continent
 
 const connectDB = async () => {
   try {
@@ -12,6 +13,6 @@ const connectDB = async () => {
     process.exit(1)
     throw error
   }
-}
+};
 
 export default connectDB;

@@ -32,11 +32,11 @@ export const verifyJWT = asyncHandler(async (req, _, next) => {
     // console.log(`************
     //   Location File : "auth.middleware",\n
     //   Data : Decoded Token \n
-    //   ${decodedToken} \n
+    //   ${decodedToken._id} \n
     // `);
 
     // get  user data
-    const user = User.findById(decodedToken?._id).select(" -password -refreshToken");
+    const user = await User.findById(decodedToken?._id).select(" -password -refreshToken");
     if (!user) { throw new ApiError(401, "Invalid access Token") };
 
     // send data in request and pass rout

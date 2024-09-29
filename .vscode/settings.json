@@ -3,6 +3,7 @@
     "BSON",
     "cloudinary",
     "neno",
+    "PAGINATIONOPTION",
     "perticular"
   ]
 }

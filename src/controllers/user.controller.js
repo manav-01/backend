@@ -5,7 +5,7 @@ import { uploadOnCloudinary, deleteOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import jwt from "jsonwebtoken"
 import { OPTION } from "../constants.js"
-import mongoose from "mongoose"
+import mongoose  from "mongoose"
 // Demo Code and initial testing for write
 // const registerUser = asyncHandler(async (req, res) => {
 //   await res.status(200).json(
@@ -184,6 +184,8 @@ const loginUser = asyncHandler(async (req, res) => {
 
   const { email, username, password } = req.body;
 
+
+
   // console.log(req.body);
 
   // password is required
@@ -262,8 +264,8 @@ const logoutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
     req.user._id,
     {
-      $set: {
-        refreshToken: undefined,
+      $unset: {
+        refreshToken: 1,
       }
     },
     {
@@ -293,20 +295,21 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   try {
     // Algorithm
     // get refresh access token from the User to update token by user
-    const incomingRefreshToken = req.cookie.refreshToken || req.body.refreshToken;
-
-    if (!refreshAccessToken) { throw new ApiError(401, "Unauthorized request") };
-
+    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+    
+    if (!incomingRefreshToken) { throw new ApiError(401, "Unauthorized request") };
+    
     // decode Token
-    const decodedToken = jwt.verify(refreshAccessToken, process.env.REFRESH_TOKEN_SECRET);
-
+    const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+    
     // Find the  user in database
     const user = await User.findById(decodedToken?._id);
     if (!user) {
       throw new ApiError(401, "Invalid refresh token ");
     };
+    // console.log("Hello" ,incomingRefreshToken ===  user?.refreshToken)
 
-    if (incomingRefreshToken !== user?.refreshAccessToken) {
+    if (incomingRefreshToken !== user?.refreshToken) {
       throw new ApiError(401, "Refresh token id expired or used")
     }
 
@@ -317,7 +320,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     return res
       .status(200)
       .cookie("accessToken", accessToken, OPTION)
-      .cookie("refresh", newRefreshToken, Option)
+      .cookie("refresh", newRefreshToken, OPTION)
       .json(
         new ApiResponse(
           200,
@@ -375,7 +378,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 const getCurrentUser = asyncHandler(async (req, res) => {
   return res
     .status(200)
-    .json(200, req.user, "current user fetched successfully.");
+    .json(new ApiResponse (200, req.user, "current user fetched successfully."));
 })
 
 // * Update account details
@@ -410,20 +413,21 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 const updateUserAvatar = asyncHandler(async (req, res) => {
 
   try {
+    // console.log(req.file,req.user._id,req.cookies)
     // Local Path details
     const avatarLocalPath = req.file?.path;
     if (!avatarLocalPath) {
       throw new ApiError(400, "Avatar file is missing")
     }
 
-    // upload on Cloudinary
-    // TODO: delete old image - assignment
-    // delete old image
-    await deleteOnCloudinary(req.user?.avatar);
-
     const avatar = await uploadOnCloudinary(avatarLocalPath);
 
     if (!avatar.url) { throw new ApiError(400, "Error while uploading on avatar"); }
+
+     // upload on Cloudinary
+    // TODO: delete old image - assignment
+    // delete old image
+    await deleteOnCloudinary(req.user?.avatar);
 
     // Update Database
     const user = await User.findByIdAndUpdate(
@@ -458,12 +462,14 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Avatar file is missing")
   }
 
+  
+  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+  if (!coverImage.url) { throw new ApiError(400, "Error while uploading on coverImage"); }
+
   // upload on Cloudinary
   // TODO: delete old image - assignment
   // delete old image
   await deleteOnCloudinary(req.user?.coverImage);
-  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
-  if (!coverImage.url) { throw new ApiError(400, "Error while uploading on coverImage"); }
 
   // Update Database
   const user = await User.findByIdAndUpdate(
@@ -576,17 +582,18 @@ const getWatchHistory = asyncHandler(async (req, res) => {
   // V21 6.21 (How to write sub pipelines and routes) NOTE: when you get user id from the request like `req.user._id` , there actually you get _id in form of "String" and then you give that string `User` by mongoose , there mongoose cover `_id` sting data into BSON Object id (An ObjectID is a 12-byte Field Of BSON type) which actually Story in DB.
   //NOTE:  but, when use user Aggregation pipeline there you need to give object id for math so backend developer need to convert that 
   //NOTE:  Convert : `new mongoose.Types.ObjectId(req.user._id)`
-
+  // console.log("Hello This is a Histrory console")
   const user = await User.aggregate([
     {
-      $match: new mongoose.Types.ObjectId(req.user?._id)
-      // $match: new mongoose.ObjectId(req.user?._id)
+      $match: { _id : new mongoose.Types.ObjectId(req.user._id)}
+
     },
     {
       $lookup: {
         from: "videos",
         localField: "watchHistory",
         foreignField: "_id",
+        as: "watchHistory",
         pipeline: [
           {
             $lookup: {

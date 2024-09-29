@@ -1,0 +1,28 @@
+[
+    {
+        "name" : "John Wick",
+        "email": "jwick@69.com",
+        "contect": "9999999999",
+        "courseCount": 4,
+        "isVerfied": true
+    },
+
+    {
+     
+      "name": "John Wick",
+      "email": "jwick@69.com",
+      "contect": "9999999999",
+      "courseCount": 4,
+      "isVerfied": true,
+      "isFbLogged": false
+    },
+    {
+     
+      "name" : "harry",
+      "email": "harry12@gmail.com",
+      "contect": "1234567894",
+     "courseCount": 4,
+      "isVerified": false,
+      "isFbLogged": false
+    }
+  ]

@@ -1,7 +1,3 @@
-Here’s a suggested README file for your **VideoTube – Video Streaming Platform** backend project, based on the details you provided:
-
----
-
 # VideoTube – Video Streaming Platform (Backend)
 
 ### Overview
